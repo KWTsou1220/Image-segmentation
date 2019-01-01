@@ -47,22 +47,22 @@ class SparseAE(object):
                 self.y = self.Decode(self.c)
     
     def Encode(self, x):
-        h = conv_layer(x, filter_shape=[5, 5, 1, 64], strides=[1, 3, 3, 1], name='L1') # (90, 300)
-        h = conv_layer(h, filter_shape=[5, 5, 64, 64], name='L2') # (90, 300)
-        h = conv_layer(h, filter_shape=[5, 5, 64, 128], strides=[1, 2, 2, 1], name='L3') # (45, 150)
-        h = conv_layer(h, filter_shape=[5, 5, 128, 128], name='L4') # (45, 150)
-        h = conv_layer(h, filter_shape=[5, 5, 128, 256], strides=[1, 3, 3, 1], name='L5') # (15, 50)
-        feature_h = conv_layer(h, filter_shape=[5, 5, 256, 256], name='L6-feature', non_linear=tf.nn.relu) # (15, 50)
-        detect_h = conv_layer(h, filter_shape=[5, 5, 256, 1], name='L6-detect', non_linear=None) # (15, 50)
+        h = conv_layer(x, filter_shape=[5, 5, 1, 64], name='L1') # (270, 900)
+        h = conv_layer(h, filter_shape=[5, 5, 64, 64], name='L2') # (270, 900)
+        h = conv_layer(h, filter_shape=[13, 40, 64, 128], strides=[1, 3, 3, 1], name='L3') # (90, 300)
+        h = conv_layer(h, filter_shape=[6, 20, 128, 128], name='L4') # (45, 150)
+        h = conv_layer(h, filter_shape=[6, 20, 128, 256], strides=[1, 3, 3, 1], name='L5') # (15, 50)
+        feature_h = conv_layer(h, filter_shape=[2, 6, 256, 256], name='L6-feature', non_linear=tf.nn.relu) # (15, 50)
+        detect_h = conv_layer(h, filter_shape=[2, 6, 256, 1], name='L6-detect', non_linear=None) # (15, 50)
         detect_h = sparse_sigmoid(detect_h, is_train=self.is_train)
         return feature_h, detect_h
     def Decode(self, c):
-        h = conv_layer(c, filter_shape=[5, 5, 256, 256], name='L1') # (15, 50)
-        h = deconv_layer(h, filter_shape=[5, 5, 128, 256], strides=[1, 3, 3, 1], output_shape=[-1, 45, 150, 128], name='L2') # (45, 150)
-        h = conv_layer(h, filter_shape=[5, 5, 128, 128], name='L3') # (45, 150)
-        h = deconv_layer(h, filter_shape=[5, 5, 64, 128], strides=[1, 2, 2, 1], output_shape=[-1, 90, 300, 64], name='L4') # (90, 300)
-        h = conv_layer(h, filter_shape=[5, 5, 64, 64], name='L5') # (90, 300)
-        h = deconv_layer(h, filter_shape=[5, 5, 1, 64], strides=[1, 3, 3, 1], output_shape=[-1, 270, 900, 1], name='L6') # (270, 900)
+        h = conv_layer(c, filter_shape=[2, 6, 256, 256], name='L1') # (15, 50)
+        h = deconv_layer(h, filter_shape=[6, 20, 128, 256], strides=[1, 3, 3, 1], output_shape=[-1, 45, 150, 128], name='L2') # (45, 150)
+        h = conv_layer(h, filter_shape=[6, 20, 128, 128], name='L3') # (45, 150)
+        h = deconv_layer(h, filter_shape=[13, 40, 64, 128], strides=[1, 2, 2, 1], output_shape=[-1, 90, 300, 64], name='L4') # (90, 300)
+        h = conv_layer(h, filter_shape=[13, 40, 64, 64], name='L5') # (90, 300)
+        h = deconv_layer(h, filter_shape=[40, 120, 1, 64], strides=[1, 3, 3, 1], output_shape=[-1, 270, 900, 1], name='L6') # (270, 900)
         return h
         
     def optimize(self, loss):

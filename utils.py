@@ -27,6 +27,18 @@ def EM_image_cut(img, cut_length):
                 crop_img += [img_[idx*cut_length:(idx+1)*cut_length, jdx*cut_length:(jdx+1)*cut_length]]
     return np.stack(crop_img, axis=0)  
 
+def image_crop(img, width_crop, height_crop):
+    img_num, height, width = img.shape
+    crop_img = []
+    
+    width_cut_num = math.floor(width/width_crop)
+    height_cut_num = math.floor(height/height_crop)
+    for img_ in img:
+        for idx in range(width_cut_num):
+            for jdx in range(height_cut_num):
+                crop_img += [img_[jdx*height_crop:(jdx+1)*height_crop, idx*width_crop:(idx+1)*width_crop]]
+    return np.stack(crop_img, axis=0)
+
 def increase_batch(start, bound, rate=1e-4):
     # increase batch size
     next_size = start
@@ -100,12 +112,12 @@ def soft_ncut(img_seg, img, sigma_d=1e2, sigma_i=1e-2):
     W = tf.multiply( tf.exp(-tf.sqrt((img1-img2)**2)/sigma_i), tf.exp(-dis/sigma_d) )
     
     asso1 = tf.multiply(tf.multiply(img_seg1, W), img_seg2)
-    asso1 = tf.reduce_sum(asso1, axis=[0, 1, 2])
+    asso1 = tf.reduce_sum(asso1, axis=[1, 2, 3])
     asso1_margin = tf.multiply(img_seg1, W)
     asso1_margin = tf.reduce_sum(asso1_margin, axis=[1, 2, 3])+1e-6
     
     asso2 = tf.multiply(tf.multiply(1-img_seg1, W), 1-img_seg2)
-    asso2 = tf.reduce_sum(asso2, axis=[0, 1, 2])
+    asso2 = tf.reduce_sum(asso2, axis=[1, 2, 3])
     asso2_margin = tf.multiply(1-img_seg1, W)
     asso2_margin = tf.reduce_sum(asso2_margin, axis=[1, 2, 3])+1e-6
     

@@ -2,6 +2,69 @@ from layer import conv_layer, pooling_layer, deconv_layer
 import tensorflow as tf
 import pdb
 
+def sparse_sigmoid(x, is_train, p=38, r=20):
+    # x: (data_size, height, width, 1)
+    with tf.variable_scope('thresholding'):
+        batch_size, height, width, ch = x.shape.as_list()
+        x = tf.reshape(x, [-1, height*width*ch])
+        batch_t = tf.nn.top_k(tmp, k=p)
+        batch_t = tf.reduce_mean(batch_t[:, -1])
+        
+        avg_t = tf.get_variable(name='threshold', 
+                                shape=[1], 
+                                initializer=tf.constant_initializer(0.0), 
+                                trainable=False)
+        if is_train:
+            avg_t_assign_op = tf.assign(avg_t, 0.9*avg_t + 0.1*batch_t)
+            with tf.control_dependencids([avg_t_assign_op]):
+                return tf.nn.sigmoid(r*(x - batch_t))
+        else:
+            return tf.nn.sigmoid(r*(x-avg_t))
+
+class SparseAE(object):
+    def __init__(self, LR, input_shape, output_shape, model_name='Sparse-AutoEncoder'):
+        # optimization setting
+        self.LR = LR
+        
+        # naming setting
+        self.model_name = model_name
+        
+        # model setting
+        self.input_shape = input_shape
+        self.output_shape = output_shape
+        with tf.variable_scope(self.model_name):
+            self.is_train = tf.placeholder(dtype=tf.bool, name='is_train')
+            self.x = tf.placeholder(dtype=tf.float32, shape=self.input_shape, name='input')
+            self.t = tf.placeholder(dtype=tf.float32, shape=self.output_shape, name='output')
+            with tf.variable_scope('Encoder'):
+                self.feature_c, self.detect_c = self.Encode(self.x)
+                self.c = tf.multiply(self.feature_c, self.detect_c)
+            with tf.variable_scope('Decoder'):
+                self.y = self.Decode(self.c)
+    
+    def Encode(self, x):
+        h = conv_layer(x, filter_shape=[5, 5, 1, 64], strides=[1, 3, 3, 1], name='L1') # (90, 300)
+        h = conv_layer(h, filter_shape=[5, 5, 64, 64], name='L2') # (90, 300)
+        h = conv_layer(h, filter_shape=[5, 5, 64, 128], strides=[1, 2, 2, 1], name='L3') # (45, 150)
+        h = conv_layer(h, filter_shape=[5, 5, 128, 128], name='L4') # (45, 150)
+        h = conv_layer(h, filter_shape=[5, 5, 128, 256], strides=[1, 3, 3, 1], name='L5') # (15, 50)
+        feature_h = conv_layer(h, filter_shape=[5, 5, 256, 256], name='L6', non_linear=tf.nn.relu) # (15, 50)
+        detect_h = conv_layer(h, filter_shape=[5, 5, 256, 1], name='L6', non_linear=None) # (15, 50)
+        detect_h = sparse_sigmoid(detect_h, is_train=self.is_train)
+        return feature_h, detect_h
+    def Decode(self, c):
+        h = conv_layer(c, filter_shape=[5, 5, 256, 256], name='L1') # (15, 50)
+        h = deconv_layer(h, filter_shape=[5, 5, 128, 256], strides=[1, 3, 3, 1], output_shape=[-1, 45, 150, 128], name='L2') # (45, 150)
+        h = conv_layer(h, filter_shape=[5, 5, 128, 128], name='L3') # (45, 150)
+        h = deconv_layer(h, filter_shape=[5, 5, 64, 128], strides=[1, 2, 2, 1], output_shape=[-1, 90, 300, 64], name='L4') # (90, 300)
+        h = conv_layer(h, filter_shape=[5, 5, 64, 64], name='L5') # (90, 300)
+        h = deconv_layer(h, filter_shape=[5, 5, 1, 64], strides=[1, 3, 3, 1], output_shape=[-1, 270, 900, 1], name='L6') # (270, 900)
+        return h
+        
+    def optimize(self, loss):
+        self.loss = loss(self.y, self.t)
+        self.training = tf.train.AdamOptimizer(self.LR).minimize(self.loss)
+    
 class UNet(object):
     def __init__(self, LR, input_shape, output_shape, model_name='U-Net'):
         # optimization setting

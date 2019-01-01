@@ -7,18 +7,22 @@ def sparse_sigmoid(x, is_train, p=38, r=20):
     with tf.variable_scope('thresholding'):
         batch_size, height, width, ch = x.shape.as_list()
         x = tf.reshape(x, [-1, height*width*ch])
-        batch_t = tf.nn.top_k(tmp, k=p)
+        batch_t, _ = tf.nn.top_k(x, k=p)
+        #pdb.set_trace()
         batch_t = tf.reduce_mean(batch_t[:, -1])
         
         avg_t = tf.get_variable(name='threshold', 
                                 shape=[1], 
                                 initializer=tf.constant_initializer(0.0), 
                                 trainable=False)
-        if is_train:
+        if is_train is not None:
             avg_t_assign_op = tf.assign(avg_t, 0.9*avg_t + 0.1*batch_t)
-            with tf.control_dependencids([avg_t_assign_op]):
+            with tf.control_dependencies([avg_t_assign_op]):
+	
+                x = tf.reshape(x, [-1, height, width, ch])
                 return tf.nn.sigmoid(r*(x - batch_t))
         else:
+            x = tf.reshape(x, [-1, height, width, ch])
             return tf.nn.sigmoid(r*(x-avg_t))
 
 class SparseAE(object):
@@ -48,8 +52,8 @@ class SparseAE(object):
         h = conv_layer(h, filter_shape=[5, 5, 64, 128], strides=[1, 2, 2, 1], name='L3') # (45, 150)
         h = conv_layer(h, filter_shape=[5, 5, 128, 128], name='L4') # (45, 150)
         h = conv_layer(h, filter_shape=[5, 5, 128, 256], strides=[1, 3, 3, 1], name='L5') # (15, 50)
-        feature_h = conv_layer(h, filter_shape=[5, 5, 256, 256], name='L6', non_linear=tf.nn.relu) # (15, 50)
-        detect_h = conv_layer(h, filter_shape=[5, 5, 256, 1], name='L6', non_linear=None) # (15, 50)
+        feature_h = conv_layer(h, filter_shape=[5, 5, 256, 256], name='L6-feature', non_linear=tf.nn.relu) # (15, 50)
+        detect_h = conv_layer(h, filter_shape=[5, 5, 256, 1], name='L6-detect', non_linear=None) # (15, 50)
         detect_h = sparse_sigmoid(detect_h, is_train=self.is_train)
         return feature_h, detect_h
     def Decode(self, c):

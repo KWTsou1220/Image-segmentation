@@ -27,6 +27,18 @@ def EM_image_cut(img, cut_length):
                 crop_img += [img_[idx*cut_length:(idx+1)*cut_length, jdx*cut_length:(jdx+1)*cut_length]]
     return np.stack(crop_img, axis=0)  
 
+def image_crop(img, width_crop, height_crop):
+    img_num, height, width = img.shape
+    crop_img = []
+    
+    width_cut_num = math.floor(width/width_crop)
+    height_cut_num = math.floor(height/height_crop)
+    for img_ in img:
+        for idx in range(width_cut_num):
+            for jdx in range(height_cut_num):
+                crop_img += [img_[jdx*height_crop:(jdx+1)*height_crop, idx*width_crop:(idx+1)*width_crop]]
+    return np.stack(crop_img, axis=0)
+
 def increase_batch(start, bound, rate=1e-4):
     # increase batch size
     next_size = start
